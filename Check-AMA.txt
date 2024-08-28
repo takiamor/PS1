@@ -1,0 +1,22 @@
+resources
+| where type == "microsoft.compute/virtualmachines"
+| extend PowerStatus = properties.extended.instanceView.powerState.displayStatus,
+    OSType = properties.storageProfile.osDisk.osType,
+    IdentityType = identity.type,
+    ComputerName = tolower(name)
+| project ComputerName, id, location, resourceGroup, PowerStatus, OSType, IdentityType
+| join kind=leftouter (
+    resources
+    | where type contains "microsoft.compute/virtualmachines/extensions"
+    | extend publisher = properties.publisher
+    | where publisher =~ "Microsoft.Azure.Monitor"
+    | parse id with * "/virtualMachines/" ComputerName"/" *
+    | extend extensionType = properties.type,
+        status = properties.provisioningState,
+        version = properties.typeHandlerVersion,
+        ComputerName = tolower(ComputerName)
+    | project ComputerName, AMA = name, AMAStatus = status, AMAVersion = version
+    )
+    on ComputerName
+| where isnotempty(AMA)
+| project ComputerName, ResourceID = tolower(id), location, resourceGroup, OSType, PowerStatus, AMA, AMAStatus, AMAVersion

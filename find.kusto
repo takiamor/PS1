@@ -1,0 +1,8 @@
+resources
+| where type == "microsoft.compute/virtualmachines/extensions"
+| extend VMName = split(id, "/")
+| where name has "AzureMonitorWindowsAgent"
+| extend SubscriptionName=case(
+subscriptionId =~ 'add subscription id', 'add subscription name',
+subscriptionId)
+| project VMName=VMName[-3], AgentName=name, SubscriptionName
